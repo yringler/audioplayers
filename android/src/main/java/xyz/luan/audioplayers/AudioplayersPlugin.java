@@ -59,6 +59,7 @@ public class AudioplayersPlugin implements MethodCallHandler {
                 if (position != null) {
                     player.seek(position);
                 }
+                player.setRate(rate);
                 player.play();
                 break;
             }
@@ -86,6 +87,11 @@ public class AudioplayersPlugin implements MethodCallHandler {
             case "setVolume": {
                 final double volume = call.argument("volume");
                 player.setVolume(volume);
+                break;
+            }
+            case "setRate": {
+                final double rate = call.argument("rate");
+                player.setRate(rate);
                 break;
             }
             case "setUrl": {
