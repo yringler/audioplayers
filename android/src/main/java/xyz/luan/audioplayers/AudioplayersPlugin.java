@@ -55,6 +55,7 @@ public class AudioplayersPlugin implements MethodCallHandler {
                 final String url = call.argument("url");
                 final double volume = call.argument("volume");
                 final Double position = call.argument("position");
+                final double rate = call.argument("rate");
                 player.setUrl(url);
                 player.setVolume(volume);
                 if (position != null) {
