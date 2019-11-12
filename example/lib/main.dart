@@ -335,7 +335,8 @@ class _tab extends StatelessWidget {
     return Center(
       child: Container(
         padding: EdgeInsets.all(16.0),
-        child: Column(
+        child: ListView(
+          shrinkWrap: true,
           children: children
               .map((w) => Container(child: w, padding: EdgeInsets.all(6.0)))
               .toList(),
