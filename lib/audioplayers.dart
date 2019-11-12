@@ -430,22 +430,18 @@ class AudioPlayer {
     );
   }
 
-  /// Sets the playback rate - call this after first calling play() or resume(). Works only on iOS for now
+  /// Sets the playback rate - call this after first calling play() or resume(). Works only on iOS and android > SDK 23 for now.
   ///
   /// iOS has limits between 0.5 and 2x
   /// not sure if that's changed recently.
-  Future<int> setPlaybackRate({double playbackRate = 1.0}) {
-    return _invokeMethod('setPlaybackRate', {'playbackRate': playbackRate});
-  }
-
-  /// Sets the play rate. rate value greater than 1.0 is faster and to slow playback use less than 1.0.
-  ///
+  /// 
   /// If result is
   ///   1: playing state will change to PLAYING
   ///   2: will not change current status
   ///   3: rate == 0, will change to PAUSED
-  Future<int> setRate(double rate) async {
-    var result = await _invokeMethod('setRate', {'rate': rate});
+  Future<int> setPlaybackRate({double playbackRate = 1.0}) async {
+    var result = await _invokeMethod('setPlaybackRate', {'playbackRate': playbackRate});
+    
     if(result == 1) {
       if(state != AudioPlayerState.PLAYING) {
         state = AudioPlayerState.PLAYING;

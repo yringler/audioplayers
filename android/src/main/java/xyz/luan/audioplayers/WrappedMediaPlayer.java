@@ -84,7 +84,10 @@ public class WrappedMediaPlayer extends Player implements MediaPlayer.OnPrepared
     }
 
     @Override
-    int setRate(double rate) {
+    int setPlaybackRate(double playbackRate) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return 2;
+        }
         if (this.rate != rate) {
             this.rate = rate;
             if (!this.released) {
@@ -97,10 +100,6 @@ public class WrappedMediaPlayer extends Player implements MediaPlayer.OnPrepared
             }
         }
         return 2;
-    }
-    
-    public double getRate() {
-        return this.rate;
     }
 
     @Override

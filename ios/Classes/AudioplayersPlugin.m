@@ -135,8 +135,6 @@ float _playbackRate = 1.0;
                     NSString *url = call.arguments[@"url"];
                     if (url == nil)
                         result(0);
-                   if (call.arguments[@"rate"]==nil)
-                      result(0);
                     if (call.arguments[@"isLocal"] == nil)
                         result(0);
                     if (call.arguments[@"volume"] == nil)
@@ -149,13 +147,11 @@ float _playbackRate = 1.0;
                     float volume = (float)[call.arguments[@"volume"] doubleValue] ;
                     int milliseconds = call.arguments[@"position"] == [NSNull null] ? 0.0 : [call.arguments[@"position"] intValue] ;
                     bool respectSilence = [call.arguments[@"respectSilence"]boolValue] ;
-                    float rate = (float)[call.arguments[@"rate"] doubleValue] ;
                     CMTime time = CMTimeMakeWithSeconds(milliseconds / 1000,NSEC_PER_SEC);
                     NSLog(@"isLocal: %d %@", isLocal, call.arguments[@"isLocal"] );
                     NSLog(@"volume: %f %@", volume, call.arguments[@"volume"] );
                     NSLog(@"position: %d %@", milliseconds, call.arguments[@"positions"] );
-                    NSLog(@"rate: %f %@", rate, call.arguments[@"rate"] );
-                    [self play:playerId url:url isLocal:isLocal volume:volume time:time rate:rate];
+                    [self play:playerId url:url isLocal:isLocal volume:volume time:time isNotification:respectSilence];
                   },
                 @"pause":
                   ^{
@@ -227,6 +223,15 @@ float _playbackRate = 1.0;
                     NSLog(@"setPlaybackRate");
                     float playbackRate = (float)[call.arguments[@"playbackRate"] doubleValue];
                     [self setPlaybackRate:playbackRate playerId:playerId];
+					if(players[playerId][@"url"]) {
+						if(playbackRate == 0) {
+							result(@(3));
+						} else {
+							result(@(1));
+						}
+					} else {
+						result(@(2));
+					}
                   },
                 @"setNotification":
                   ^{
@@ -251,22 +256,7 @@ float _playbackRate = 1.0;
                     NSString *releaseMode = call.arguments[@"releaseMode"];
                     bool looping = [releaseMode hasSuffix:@"LOOP"];
                     [self setLooping:looping playerId:playerId];
-                  },
-                @"setRate":
-                    ^{
-                        NSLog(@"setRate");
-                        float rate = (float)[call.arguments[@"rate"] doubleValue];
-                        [self setRate:rate playerId:playerId];
-                        if(players[playerId][@"url"]) {
-                          if(rate == 0) {
-                            result(@(3));
-                          } else {
-                            result(@(1));
-                          }
-                        } else {
-                          result(@(2));
-                        }
-                    },
+                  }
                 };
 
   [ self initPlayerInfo:playerId ];
@@ -275,7 +265,7 @@ float _playbackRate = 1.0;
     NSLog(@"not implemented");
     result(FlutterMethodNotImplemented);
   }
-  if(![call.method isEqualToString:@"setUrl"] || ![call.method isEqualToString:@"setRate"]) {
+  if(![call.method isEqualToString:@"setUrl"]) {
     result(@(1));
   }
 }
@@ -283,7 +273,7 @@ float _playbackRate = 1.0;
 -(void) initPlayerInfo: (NSString *) playerId {
   NSMutableDictionary * playerInfo = players[playerId];
   if (!playerInfo) {
-    players[playerId] = [@{@"isPlaying": @false, @"volume": @(1.0), @"looping": @(false), @"rate": @(1.0)} mutableCopy];
+    players[playerId] = [@{@"isPlaying": @false, @"volume": @(1.0), @"looping": @(false)} mutableCopy];
   }
 }
 
@@ -499,7 +489,6 @@ float _playbackRate = 1.0;
      isLocal: (int) isLocal
       volume: (float) volume
         time: (CMTime) time
-        rate: (float) rate
       isNotification: (bool) respectSilence
 {
   [ self setUrl:url 
@@ -512,7 +501,6 @@ float _playbackRate = 1.0;
            [ player setVolume:volume ];
            [ player seekToTime:time ];
            [ player play];
-           [ player setRate:rate ];
            [ playerInfo setObject:@true forKey:@"isPlaying" ];
          }    
   ];
@@ -606,14 +594,6 @@ float _playbackRate = 1.0;
         playerId:  (NSString *) playerId {
   NSMutableDictionary *playerInfo = players[playerId];
   [playerInfo setObject:@(looping) forKey:@"looping"];
-}
-
--(void) setRate: (float) rate
-         playerId:  (NSString *) playerId {
-    NSMutableDictionary *playerInfo = players[playerId];
-    AVPlayer *player = playerInfo[@"player"];
-    playerInfo[@"rate"] = @(rate);
-    [ player setRate:rate ];
 }
 
 -(void) stop: (NSString *) playerId {
