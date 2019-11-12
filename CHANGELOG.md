@@ -1,10 +1,53 @@
 # Changelog
 
+## [next]
+
+## audioplayers 0.13.2
+ - Handling plugin dealloc and onTimeInterval crashs (thanks @chedechao111)
+ - Audio position update when the audio is paused (thanks @bjornjacobs)
+
+## audioplayers 0.13.1
+ - Added stayAwake feature (thanks, @danielR2001)
+ - Improved dispose method (thanks, @hugocbpassos)
+ - Added getCurrentPosition (thanks, @hariom08)
+ - Some bug fixes and small changes
+
+## audioplayers 0.13.0
+ - Call onDurationChanged after setUrl() to be consistent with ios version (thanks @subhash279)
+ - Adding getDuration feature iOS/Android (thanks @alecorsino)
+
+## audioplayers 0.12.1
+ - Fixes bug where the stream handlers were not called due to exception on the handler
+ - Proper error message when errors in the dart handler occurs
+
+## audioplayers 0.12.0
+ - Update to path_provider 1.1.0
+ - Upgrade to Swift 5 in example project setting (thanks @jerryzhoujw)
+
+## audioplayers 0.11.0
+- **Breaking change**. Migrate from the deprecated original Android Support
+  Library to AndroidX. This shouldn't result in any functional changes, but it
+  requires any Android apps using this plugin to [also
+  migrate](https://developer.android.com/jetpack/androidx/migrate) if they're
+  using the original support library.
+
+## audioplayers 0.10.1
+- Seek and play now works with milliseconds instead of second (thanks, @catoldcui and @erickzanardo)
+
+## audioplayers 0.10.0
+- Added a low latency api for android (thanks, @feroult)
+
+## audioplayers 0.9.0
+- Improved callbacks using Streams to allow for multiple subscibers (thanks, @LucasCLuk)
+- Update uuid version to 2.0.0 (thanks, @BeMacized)
+
 ## audioplayers 0.8.2
 - Update path_provider version (thanks, @apiraino)
 
 ## audioplayers 0.8.1
 - Fix for duration when playing a stream
+- Added respectSilence flag in audioplayers, or isNotification for play methos in audio_cache
+  False by default, to use player for local notification. Silent when device is in silent mode.
 
 ## audioplayers 0.8.0
 - Allow setting seek position in play function (thanks @rob-patchett)

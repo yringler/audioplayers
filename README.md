@@ -10,20 +10,39 @@ This was orginally forked from [rxlabz's audioplayer](https://github.com/rxlabz/
 
 ```yaml
 dependencies:
-  audioplayers: ^0.8.2
+  audioplayers: ^0.13.2
 ```
 
 ## Discord channel
 
 We have created a channel for audioplayers help on Fireslime's discord, join it [here](https://discord.gg/ny7eThk)
 
+## Support us
+
+You can support us by becoming a patron on Patreon, any support is much appreciated.
+
+[![Patreon](https://c5.patreon.com/external/logo/become_a_patron_button.png)](https://www.patreon.com/fireslime)
+
+## Troubleshooting
+
+Before opening an issue, please refer to the [troubleshoot guide](troubleshooting.md)
+
 ## Usage
 
 An `AudioPlayer` instance can play a single audio at a time. To create it, simply call the constructor:
 
 ```dart
-    AudioPlayer audioPlayer = new AudioPlayer();
+    AudioPlayer audioPlayer = AudioPlayer();
 ```
+
+To use the low latency API, better for gaming sounds, use:
+
+```dart
+    AudioPlayer audioPlayer = AudioPlayer(mode: PlayerMode.LOW_LATENCY);
+```
+
+In this mode the backend won't fire any duration or position updates.
+Also, it is not possible to use the seek method to set the audio a specific position.
 
 You can create multiple instances to play audio simultaneously.
 
@@ -39,15 +58,19 @@ Logs are disable by default! To debug, run:
 
 There are three possible sources of audio:
 
- - Remote file on the Internet
- - Local file on the user's device
- - Local asset from your Flutter project
+- Remote file on the Internet
+- Local file on the user's device
+- Local asset from your Flutter project
 
 Both for Remote Files or Local Files, use the `play` method, just setting appropriately the flag `isLocal`.
 
 For Local Assets, you have to use the `AudioCache` class (see below).
 
 To play a Remote File, just call `play` with the url (the `isLocal` parameter is false by default):
+
+If you want to play audio for a long period of time, you need to set appropriately the flag `stayAwake`,
+If you pass `setAwake` as true you need to add this permission to your app manifest:
+`<uses-permission android:name="android.permission.WAKE_LOCK" />`.
 
 ```dart
   play() async {
@@ -91,7 +114,7 @@ Stop will stop the audio and reset the cursor. Subsequently calling play will re
 Finally, use seek to jump through your audio:
 
 ```dart
-  int result = await audioPlayer.seek(new Duration(milliseconds: 1200));
+  int result = await audioPlayer.seek(Duration(milliseconds: 1200));
 ```
 
 Also, you can resume (like play, but without new parameters):
@@ -110,9 +133,9 @@ On iOS this doesn't apply, so release does nothing.
 
 You can change the Release Mode to determine the actual behavior of the MediaPlayer once finished/stopped. There are three options:
 
-* RELEASE: default mode, will release after stop/completed.
-* STOP: will never release; calling play should be faster.
-* LOOP: will never release; after completed, it will start playing again on loop.
+- RELEASE: default mode, will release after stop/completed.
+- STOP: will never release; calling play should be faster.
+- LOOP: will never release; after completed, it will start playing again on loop.
 
 If you are not on RELEASE mode, you should call the release method yourself; for example:
 
@@ -129,60 +152,71 @@ If you are not on RELEASE mode, you should call the release method yourself; for
 
 Despite the complex state diagram of Android's MediaPlayer, an AudioPlayer instance should never have an invalid state. Even if it's released, if resume is called, the data will be fetch again.
 
-### Handlers
+### Streams
 
-You can register callbacks for several event handlers, like so:
+The AudioPlayer supports subscribing to events like so:
 
-#### Duration Handler
+#### Duration Event
 
-This handler returns the duration of the file, when it's available (it might take a while because it's being downloaded or buffered).
+This event returns the duration of the file, when it's available (it might take a while because it's being downloaded or buffered).
 
 ```dart
-  player.durationHandler = (Duration d) {
+  player.onDurationChanged.listen((Duration d) {
     print('Max duration: $d');
     setState(() => duration = d);
-  };
+  });
 ```
 
-#### Position Handler
+#### Position Event
 
-This handler updates the current position of the audio. You can use it to make a progress bar, for instance.
+This Event updates the current position of the audio. You can use it to make a progress bar, for instance.
 
 ```dart
-  player.positionHandler = (Duration  p) => {
-    print('Current position: $d');
-    setState(() => duration = d);
-  };
+  player.onAudioPositionChanged.listen((Duration  p) => {
+    print('Current position: $p');
+    setState(() => position = p);
+  });
 ```
 
-#### Completion Handler
+#### State Event
 
-This handler is called when the audio finishes playing; it's used in the loop method, for instance.
+This Event returns the current player state. You can use it to show if player playing, or stopped, or paused.
+
+```dart
+  player.onPlayerStateChanged.listen((AudioPlayerState s) => {
+    print('Current player state: $s');
+    setState(() => playerState = s);
+  });
+```
+
+#### Completion Event
+
+This Event is called when the audio finishes playing; it's used in the loop method, for instance.
 
 It does not fire when you interrupt the audio with pause or stop.
 
 ```dart
-  player.completionHandler = () {
+  player.onPlayerCompletion.listen((event) {
     onComplete();
     setState(() {
       position = duration;
     });
-  };
+  });
 ```
 
-#### Error Handler
+#### Error Event
 
 This is called when an unexpected error is thrown in the native code.
 
 ```dart
-  player.errorHandler = (msg) {
+  player.onPlayerError.listen((msg) {
     print('audioPlayer error : $msg');
     setState(() {
       playerState = PlayerState.stopped;
-      duration = new Duration(seconds: 0);
-      position = new Duration(seconds: 0);
+      duration = Duration(seconds: 0);
+      position = Duration(seconds: 0);
     });
-  };
+  });
 ```
 
 ### AudioCache
@@ -191,16 +225,24 @@ In order to play Local Assets, you must use the `AudioCache` class.
 
 Flutter does not provide an easy way to play audio on your assets, but this class helps a lot. It actually copies the asset to a temporary folder in the device, where it is then played as a Local File.
 
-It works as a cache because it keep track of the copied files so that you can replay then without delay.
+It works as a cache because it keeps track of the copied files so that you can replay them without delay.
 
 You can find the full documentation for this class [here](doc/audio_cache.md).
+
+### playerId
+
+By default, each time you initialize a new instance of AudioPlayer a unique playerId is generated and assigned using [uuid package](https://pub.dev/packages/uuid), this is designed this way to play multiple audio files simultaneously, if you want to play using the same instance that was created before simply pass your playerId when creating a new AudioPlayer instance.
+
+```dart
+final audioPlayer = AudioPlayer(playerId: 'my_unique_playerId');
+```
 
 ## Supported Formats
 
 You can check a list of supported formats below:
 
- - [Android](https://developer.android.com/guide/topics/media/media-formats.html)
- - [iOS](http://www.techotopia.com/index.php/Playing_Audio_on_iOS_8_using_AVAudioPlayer#Supported_Audio_Formats)
+- [Android](https://developer.android.com/guide/topics/media/media-formats.html)
+- [iOS](http://www.techotopia.com/index.php/Playing_Audio_on_iOS_8_using_AVAudioPlayer#Supported_Audio_Formats)
 
 ## :warning: iOS App Transport Security
 

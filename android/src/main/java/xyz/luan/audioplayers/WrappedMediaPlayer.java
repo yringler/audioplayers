@@ -1,23 +1,15 @@
 package xyz.luan.audioplayers;
 
+import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
-import android.media.AudioAttributes;
 import android.os.Build;
-import android.os.Handler;
+import android.os.PowerManager;
+import android.content.Context;
 
 import java.io.IOException;
-import java.lang.ref.WeakReference;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
 
-import io.flutter.plugin.common.MethodCall;
-import io.flutter.plugin.common.MethodChannel;
-import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
-import io.flutter.plugin.common.PluginRegistry.Registrar;
-
-public class WrappedMediaPlayer implements MediaPlayer.OnPreparedListener, MediaPlayer.OnCompletionListener {
+public class WrappedMediaPlayer extends Player implements MediaPlayer.OnPreparedListener, MediaPlayer.OnCompletionListener, MediaPlayer.OnSeekCompleteListener {
 
     private String playerId;
 
@@ -30,20 +22,24 @@ public class WrappedMediaPlayer implements MediaPlayer.OnPreparedListener, Media
     private boolean prepared = false;
     private boolean playing = false;
 
-    private double shouldSeekTo = -1;
+    private int shouldSeekTo = -1;
 
     private MediaPlayer player;
     private AudioplayersPlugin ref;
 
-    public WrappedMediaPlayer(AudioplayersPlugin ref, String playerId) {
+    WrappedMediaPlayer(AudioplayersPlugin ref, String playerId) {
         this.ref = ref;
         this.playerId = playerId;
     }
 
-    public void setUrl(String url) {
+    /**
+     * Setter methods
+     */
+
+    @Override
+    void setUrl(String url, boolean isLocal) {
         if (!objectEquals(this.url, url)) {
             this.url = url;
-
             if (this.released) {
                 this.player = createPlayer();
                 this.released = false;
@@ -59,11 +55,8 @@ public class WrappedMediaPlayer implements MediaPlayer.OnPreparedListener, Media
         }
     }
 
-    public String getUrl() {
-        return this.url;
-    }
-
-    public void setVolume(double volume) {
+    @Override
+    void setVolume(double volume) {
         if (this.volume != volume) {
             this.volume = volume;
             if (!this.released) {
@@ -72,8 +65,20 @@ public class WrappedMediaPlayer implements MediaPlayer.OnPreparedListener, Media
         }
     }
 
-    public double getVolume() {
-        return this.volume;
+    @Override
+    void configAttributes(boolean respectSilence, boolean stayAwake, Context context) {
+        if (this.respectSilence != respectSilence) {
+            this.respectSilence = respectSilence;
+            if (!this.released) {
+                setAttributes(player);
+            }
+        }
+        if (this.stayAwake != stayAwake) {
+            this.stayAwake = stayAwake;
+            if (!this.released && this.stayAwake) {
+                this.player.setWakeMode(context, PowerManager.PARTIAL_WAKE_LOCK);
+            }
+        }
     }
 
     public int setRate(double rate) {
@@ -95,15 +100,46 @@ public class WrappedMediaPlayer implements MediaPlayer.OnPreparedListener, Media
         return this.rate;
     }
 
-    public boolean isPlaying() {
-        return this.playing;
+    @Override
+    void setReleaseMode(ReleaseMode releaseMode) {
+        if (this.releaseMode != releaseMode) {
+            this.releaseMode = releaseMode;
+            if (!this.released) {
+                this.player.setLooping(releaseMode == ReleaseMode.LOOP);
+            }
+        }
     }
 
-    public boolean isActuallyPlaying() {
+    /**
+     * Getter methods
+     */
+
+    @Override
+    int getDuration() {
+        return this.player.getDuration();
+    }
+
+    @Override
+    int getCurrentPosition() {
+        return this.player.getCurrentPosition();
+    }
+
+    @Override
+    String getPlayerId() {
+        return this.playerId;
+    }
+
+    @Override
+    boolean isActuallyPlaying() {
         return this.playing && this.prepared;
     }
 
-    public void play() {
+    /**
+     * Playback handling methods
+     */
+
+    @Override
+    void play() {
         if (!this.playing) {
             this.playing = true;
             if (this.released) {
@@ -119,7 +155,8 @@ public class WrappedMediaPlayer implements MediaPlayer.OnPreparedListener, Media
         }
     }
 
-    public void stop() {
+    @Override
+    void stop() {
         if (this.released) {
             return;
         }
@@ -135,7 +172,8 @@ public class WrappedMediaPlayer implements MediaPlayer.OnPreparedListener, Media
         }
     }
 
-    public void release() {
+    @Override
+    void release() {
         if (this.released) {
             return;
         }
@@ -152,65 +190,39 @@ public class WrappedMediaPlayer implements MediaPlayer.OnPreparedListener, Media
         this.playing = false;
     }
 
-    public void pause() {
+    @Override
+    void pause() {
         if (this.playing) {
             this.playing = false;
             this.player.pause();
         }
     }
 
-    private void setSource(String url) {
-        try {
-            this.player.setDataSource(url);
-        } catch (IOException ex) {
-            throw new RuntimeException("Unable to access resource", ex);
-        }
-    }
-
     // seek operations cannot be called until after
     // the player is ready.
-    public void seek(double position) {
+    @Override
+    void seek(int position) {
         if (this.prepared)
-            this.player.seekTo((int) (position * 1000));
+            this.player.seekTo(position);
         else
             this.shouldSeekTo = position;
     }
 
-    public int getDuration() {
-        return this.player.getDuration();
-    }
-
-    public int getCurrentPosition() {
-        return this.player.getCurrentPosition();
-    }
-
-    public String getPlayerId() {
-        return this.playerId;
-    }
-
-    public void setReleaseMode(ReleaseMode releaseMode) {
-        if (this.releaseMode != releaseMode) {
-            this.releaseMode = releaseMode;
-            if (!this.released) {
-                this.player.setLooping(releaseMode == ReleaseMode.LOOP);
-            }
-        }
-    }
-
-    public ReleaseMode getReleaseMode() {
-        return this.releaseMode;
-    }
+    /**
+     * MediaPlayer callbacks
+     */
 
     @Override
     public void onPrepared(final MediaPlayer mediaPlayer) {
         this.prepared = true;
+        ref.handleDuration(this);
         if (this.playing) {
             this.player.start();
             ref.handleIsPlaying(this);
             this.player.setPlaybackParams(this.player.getPlaybackParams().setSpeed((float) rate));
         }
         if (this.shouldSeekTo >= 0) {
-            this.player.seekTo((int) (this.shouldSeekTo * 1000));
+            this.player.seekTo(this.shouldSeekTo);
             this.shouldSeekTo = -1;
         }
     }
@@ -223,31 +235,46 @@ public class WrappedMediaPlayer implements MediaPlayer.OnPreparedListener, Media
         ref.handleCompletion(this);
     }
 
-    @SuppressWarnings("deprecation")
-    private void setAttributes(MediaPlayer player) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            player.setAudioAttributes(new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                .build()
-            );
-        } else {
-            // This method is deprecated but must be used on older devices
-            player.setAudioStreamType(AudioManager.STREAM_MUSIC);
-        }
+    @Override
+    public void onSeekComplete(final MediaPlayer mediaPlayer) {
+        ref.handleSeekComplete(this);
     }
+
+    /**
+     * Internal logic. Private methods
+     */
 
     private MediaPlayer createPlayer() {
         MediaPlayer player = new MediaPlayer();
         player.setOnPreparedListener(this);
         player.setOnCompletionListener(this);
+        player.setOnSeekCompleteListener(this);
         setAttributes(player);
         player.setVolume((float) volume, (float) volume);
         player.setLooping(this.releaseMode == ReleaseMode.LOOP);
         return player;
     }
 
-    private static boolean objectEquals(Object o1, Object o2) {
-        return o1 == null && o2 == null || o1 != null && o1.equals(o2);
+    private void setSource(String url) {
+        try {
+            this.player.setDataSource(url);
+        } catch (IOException ex) {
+            throw new RuntimeException("Unable to access resource", ex);
+        }
     }
+
+    @SuppressWarnings("deprecation")
+    private void setAttributes(MediaPlayer player) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            player.setAudioAttributes(new AudioAttributes.Builder()
+                    .setUsage(respectSilence ? AudioAttributes.USAGE_NOTIFICATION_RINGTONE : AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+            );
+        } else {
+            // This method is deprecated but must be used on older devices
+            player.setAudioStreamType(respectSilence ? AudioManager.STREAM_RING : AudioManager.STREAM_MUSIC);
+        }
+    }
+
 }
