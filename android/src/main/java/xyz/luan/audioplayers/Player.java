@@ -17,6 +17,8 @@ abstract class Player {
 
     abstract void pause();
 
+    abstract int setRate(double rate);
+
     abstract void setUrl(String url, boolean isLocal);
 
     abstract void setVolume(double volume);

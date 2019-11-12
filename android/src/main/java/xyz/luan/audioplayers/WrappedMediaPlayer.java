@@ -16,6 +16,8 @@ public class WrappedMediaPlayer extends Player implements MediaPlayer.OnPrepared
     private String url;
     private double volume = 1.0;
     private double rate = 1.0;
+    private boolean respectSilence;
+    private boolean stayAwake;
     private ReleaseMode releaseMode = ReleaseMode.RELEASE;
 
     private boolean released = true;
@@ -81,7 +83,8 @@ public class WrappedMediaPlayer extends Player implements MediaPlayer.OnPrepared
         }
     }
 
-    public int setRate(double rate) {
+    @Override
+    int setRate(double rate) {
         if (this.rate != rate) {
             this.rate = rate;
             if (!this.released) {
@@ -95,7 +98,7 @@ public class WrappedMediaPlayer extends Player implements MediaPlayer.OnPrepared
         }
         return 2;
     }
-
+    
     public double getRate() {
         return this.rate;
     }

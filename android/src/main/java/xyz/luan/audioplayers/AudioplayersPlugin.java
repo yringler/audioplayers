@@ -49,7 +49,8 @@ public class AudioplayersPlugin implements MethodCallHandler {
 
     private void handleMethodCall(final MethodCall call, final MethodChannel.Result response) {
         final String playerId = call.argument("playerId");
-        final WrappedMediaPlayer player = getPlayer(playerId);
+        final String mode = call.argument("mode");
+        final Player player = getPlayer(playerId, mode);
         int result = 1;
         switch (call.method) {
             case "play": {

@@ -328,7 +328,7 @@ class AudioPlayer {
     Duration position,
     bool respectSilence = false,
     bool stayAwake = false,
-    double rate: 1.0}
+    double rate: 1.0
   }) async {
     isLocal ??= false;
     volume ??= 1.0;

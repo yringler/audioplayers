@@ -84,6 +84,12 @@ public class WrappedSoundPool extends Player implements SoundPool.OnLoadComplete
     }
 
     @Override
+    int setRate(double rate) {
+        // Not yet implimented with SoundPool, so return 2- unchanged.
+        return 2;
+    }
+
+    @Override
     void setUrl(final String url, final boolean isLocal) {
         if (this.url != null && this.url.equals(url)) {
             return;
